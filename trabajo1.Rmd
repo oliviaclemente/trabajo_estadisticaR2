@@ -1,0 +1,186 @@
+---
+title: "Trabajo estadistica inferencial"
+author: "Olivia Clemente"
+output: html_document
+---
+# 1.Selección de dos m.a.s
+```{r, echo=FALSE}
+library(dplyr)
+library(knitr)
+library(kableExtra)
+library(ggplot2)
+library(tidyverse)
+library(randtests)
+library(car)
+
+data <- read.csv("flights.csv")
+```
+Por ahora nuestro csv tiene `r nrow(data)` filas y `r ncol(data)` columnas.
+
+# a) Edición del csv
+```{r, echo=FALSE}
+# Número de filas a eliminar desde el final
+n_filas_eliminar <- 266888
+
+# Seleccionar las filas desde el principio hasta (nrow(data) - n_filas_eliminar)
+data <- data[1:(nrow(data) - n_filas_eliminar), ]
+
+# Guardar el dataframe modificado en un nuevo archivo CSV
+write.csv(data, "nuevo_archivo.csv", row.names = FALSE)
+
+# Verificar que la eliminación fue correcta
+datos <- read.csv("nuevo_archivo.csv")
+
+
+# Eliminar las filas NA
+datos <- na.omit(datos)
+```
+Ahora nuestro csv tiene `r nrow(datos)` filas y `r ncol(datos)` columnas. Teniendo en cuenta que hemos eliminado los datos nulos y hemos eliminado filas.
+
+# b) Graficos y datos atipicos.
+```{r, echo=FALSE}
+#Seleccionamos las columnas que vamos a usar
+columnas <- datos %>% 
+  select(flightType , price)
+```
+Creacion de tabla de frecuencias para la columnas 'flightType' y 'price'
+
+```{r, echo=FALSE}
+# Crear tabla de frecuencias
+tabla_tipo_precio <- table(datos$flightType)
+print(tabla_tipo_precio)
+
+# Calcular la media del precio por tipo de vuelo
+resumen_precio_tipo <- aggregate(price ~ flightType, data = datos, FUN = mean)
+print(resumen_precio_tipo)
+```
+Grafico datos atipicos:
+```{r, echo=FALSE}
+boxplot(price ~ flightType, data = datos, col = "lightblue", main = "Distribución de Precios por Tipo de Vuelo", xlab = "Tipo de Vuelo", ylab = "Precio")
+```
+
+A continuación filramos los datos sin outliers:
+```{r, echo=FALSE}
+#datos atipicos:
+Q1 <- quantile(datos$price, 0.25)
+Q3 <- quantile(datos$price, 0.75)
+IQR_price <- Q3 - Q1
+
+# Definir límites para identificar outliers
+limite_inferior <- Q1 - 1.5 * IQR_price
+limite_superior <- Q3 + 1.5 * IQR_price
+
+# Filtrar los datos sin outliers
+datos_sin_outliers <- datos[datos$price >= limite_inferior & datos$price <= limite_superior, ]
+print(datos_sin_outliers)
+```
+
+Tabla con la media(precios) y varianza(precios) por tipo de vuelo.
+
+```{r, echo=FALSE}
+df <- datos_sin_outliers[datos_sin_outliers$flightType != "economic",]
+df <-datos_sin_outliers[datos_sin_outliers$flightType != "premium",]
+df <-datos_sin_outliers[datos_sin_outliers$flightType != "firstClass",]
+
+kable(datos %>% group_by(flightType) %>% summarise(media = mean(price), varianza = var(price)) %>% arrange(varianza, media), col.names = c("Tipo de vuelo", "Media de precios", "Varianza de precios"), caption = "Media y varianza de precios por tipo de vuelo") %>% 
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"))
+```
+
+Creamos a traves de la tabla anterior un histograma para cada tipo de vuelo:
+```{r, echo=FALSE}
+economic= datos[datos$flightType == "economic",]
+premium= datos[datos$flightType == "premium",]
+firstClass= datos[datos$flightType == "firstClass",]
+
+
+hist(economic$price, main = "economic", xlab = "Price", ylab = "Frecuencia", col = "pink")
+hist(premium$price, main = "premium", xlab = "Price", ylab = "Frecuencia", col = "pink")
+hist(firstClass$price, main = "firstClass", xlab = "Price", ylab = "Frecuencia", col = "pink")
+```
+
+# c) Elección y creación de las dos m.a.s
+
+Creamos dos m.a.s sin remplazamiento con un tamaño=500 y creamos sus graficos.
+```{r, echo=FALSE}
+
+set.seed(123)
+mpremium <- sample(premium$price, 500, replace = FALSE)
+mpremium
+
+set.seed(123)
+mfirstClass <- sample(firstClass$price, 500, replace = FALSE)
+mfirstClass
+
+hist(mpremium, main = "Vuelo premium", xlab = "Precio", ylab = "Frecuencia", col = "pink")
+hist(mfirstClass, main = "Vuelo primera clase", xlab = "Precio", ylab = "Frecuencia", col = "pink")
+```
+
+# 2.Estimación puntual de las medias y cuasivarianzas muestrales. Análisis de los resultados.
+
+A continuacion haremos las medias y las cuasivarinazas de las m.a.s creadas anteriormente las cuales son el tipo de vuelo(premium o firstClass) y el precio
+```{r, echo=FALSE}
+#Estimación puntual de las medias y cuasivarianzas muestrales. Análisis de los resultados.
+nombre <- c("Vuelo premium", "Vuelo primera clase")
+media <- c(mean(mpremium), mean(mfirstClass))
+cuasivarianza <- c(var(mpremium), var(mfirstClass))
+tabla_estimacion_puntual <- data.frame(nombre, media, cuasivarianza )
+kable(tabla_estimacion_puntual, col.names = c("Muestra", "Media muestral", "Cuasivarianza muestral"), caption = "Estimacion de los precios") %>% 
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"))
+```
+Analisis de los resultados:
+La media del Vuelo primera clase es mayor que la del Vuelo premium, lo que sugiere que, en promedio, los precios son más altos para el Vuelo primera clase.
+La cuasivarianza del Vuelo primera clase es mayor que la del Vuelo premium. Esto indica que los precios en el Vuelo primera clase tienen una mayor variabilidad alrededor de la media que los precios en el Vuelo premium.
+Por lo tanto la media como la cuasivarianza muestral de los precios muestran un gran diferencia entre si.
+
+# 3.Estimación por intervalos de confianza al 95% de las medias poblacionales, varianzaspoblacionales, diferencia de medias poblacionales y cociente de varianzaspoblacionales. Análisis de los resultados.
+El intervalo de confianza al 95% para la media se refiere a que el 95% de las veces el resultado que se espera es la media. 
+En cambio para el intervalo al 95% de la varianza se espera que el resultado sea valor de la cuasivarianza poblacional.
+# a) Intervalos de confianza al 95% para la media y la varianza del precio del tipo de vuelo premium
+```{r, echo=FALSE}
+
+
+t.test(mpremium, conf.level=0.95)$conf
+
+IntVar <- function(x, alpha){
+    n <- length(x)
+    k1 <- qchisq(1-(alpha/2), n-1, lower.tail = FALSE)
+    k2 <- qchisq(alpha/2, n-1, lower.tail = FALSE)
+    s2 <- var(x)
+    ICVAR <- c(((n-1)*s2)/k2, ((n-1)*s2)/k1)
+    return(ICVAR)}
+IntVar(mpremium, 0.05)
+```
+
+
+# b)Intervalos de confianza al 95% para la media y la varianza precio del tipo de vuelo de first Class
+
+```{r, echo=FALSE}
+t.test(mfirstClass, conf.level=0.95)$conf
+
+IntVar <- function(x, alpha){
+    n <- length(x)
+    k1 <- qchisq(1-(alpha/2), n-1, lower.tail = FALSE)
+    k2 <- qchisq(alpha/2, n-1, lower.tail = FALSE)
+    s2 <- var(x)
+    ICVAR <- c(((n-1)*s2)/k2, ((n-1)*s2)/k1)
+    return(ICVAR)}
+IntVar(mfirstClass, 0.05)
+```
+
+# c)Intervalo para la diferencia de medias
+Si el numero 0 esta en el intervalo las medias poblacionales de los dos m.a.s son iguales. Como en este caso el intervalo no contiene el 0, significa que las medias poblacionales de los tipos de vuelo son diferentes.
+```{r, echo=FALSE}
+var.test(mpremium, mfirstClass, conf.level=0.95)$conf
+IntVar(mfirstClass, 0.05)
+```
+
+# d)Intervalo para el cociente de varianzas
+Si el numero 1 esta en el intervalo las varianzas poblacionales de los dos m.a.s son iguales. Como en este caso el intervalo no contiene el 1, significa que las varianzas poblacionales de los tipos de vuelo son diferentes.
+```{r, echo=FALSE}
+t.test(mpremium, mfirstClass, conf.level=0.95, var.equal= FALSE)$conf
+IntVar(mfirstClass, 0.05)
+```
+
+# 3. Realizar los siguientes contrastes de hipótesis con un nivel de significación del 5%:
+
+
