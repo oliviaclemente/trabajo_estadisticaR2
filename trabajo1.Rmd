@@ -1,7 +1,6 @@
 ---
 title: "Trabajo estadistica inferencial"
 author: "Olivia Clemente"
-output: html_document
 ---
 # 1.Selección de dos m.a.s
 ```{r, echo=FALSE}
@@ -17,7 +16,7 @@ data <- read.csv("flights.csv")
 ```
 Por ahora nuestro csv tiene `r nrow(data)` filas y `r ncol(data)` columnas.
 
-# a) Edición del csv
+## a) Edición del csv
 ```{r, echo=FALSE}
 # Número de filas a eliminar desde el final
 n_filas_eliminar <- 266888
@@ -37,7 +36,7 @@ datos <- na.omit(datos)
 ```
 Ahora nuestro csv tiene `r nrow(datos)` filas y `r ncol(datos)` columnas. Teniendo en cuenta que hemos eliminado los datos nulos y hemos eliminado filas.
 
-# b) Graficos y datos atipicos.
+## b) Graficos y datos atipicos.
 ```{r, echo=FALSE}
 #Seleccionamos las columnas que vamos a usar
 columnas <- datos %>% 
@@ -98,7 +97,7 @@ hist(premium$price, main = "premium", xlab = "Price", ylab = "Frecuencia", col =
 hist(firstClass$price, main = "firstClass", xlab = "Price", ylab = "Frecuencia", col = "pink")
 ```
 
-# c) Elección y creación de las dos m.a.s
+## c) Elección y creación de las dos m.a.s
 
 Creamos dos m.a.s sin remplazamiento con un tamaño=500 y creamos sus graficos.
 ```{r, echo=FALSE}
@@ -135,7 +134,7 @@ Por lo tanto la media como la cuasivarianza muestral de los precios muestran un 
 # 3.Estimación por intervalos de confianza al 95% de las medias poblacionales, varianzaspoblacionales, diferencia de medias poblacionales y cociente de varianzaspoblacionales. Análisis de los resultados.
 El intervalo de confianza al 95% para la media se refiere a que el 95% de las veces el resultado que se espera es la media. 
 En cambio para el intervalo al 95% de la varianza se espera que el resultado sea valor de la cuasivarianza poblacional.
-# a) Intervalos de confianza al 95% para la media y la varianza del precio del tipo de vuelo premium
+## a) Intervalos de confianza al 95% para la media y la varianza del precio del tipo de vuelo premium
 ```{r, echo=FALSE}
 
 
@@ -152,7 +151,7 @@ IntVar(mpremium, 0.05)
 ```
 
 
-# b)Intervalos de confianza al 95% para la media y la varianza precio del tipo de vuelo de first Class
+## b)Intervalos de confianza al 95% para la media y la varianza precio del tipo de vuelo de first Class
 
 ```{r, echo=FALSE}
 t.test(mfirstClass, conf.level=0.95)$conf
@@ -167,14 +166,14 @@ IntVar <- function(x, alpha){
 IntVar(mfirstClass, 0.05)
 ```
 
-# c)Intervalo para la diferencia de medias
+## c)Intervalo para la diferencia de medias
 Si el numero 0 esta en el intervalo las medias poblacionales de los dos m.a.s son iguales. Como en este caso el intervalo no contiene el 0, significa que las medias poblacionales de los tipos de vuelo son diferentes.
 ```{r, echo=FALSE}
 var.test(mpremium, mfirstClass, conf.level=0.95)$conf
 IntVar(mfirstClass, 0.05)
 ```
 
-# d)Intervalo para el cociente de varianzas
+## d)Intervalo para el cociente de varianzas
 Si el numero 1 esta en el intervalo las varianzas poblacionales de los dos m.a.s son iguales. Como en este caso el intervalo no contiene el 1, significa que las varianzas poblacionales de los tipos de vuelo son diferentes.
 ```{r, echo=FALSE}
 t.test(mpremium, mfirstClass, conf.level=0.95, var.equal= FALSE)$conf
@@ -182,5 +181,153 @@ IntVar(mfirstClass, 0.05)
 ```
 
 # 3. Realizar los siguientes contrastes de hipótesis con un nivel de significación del 5%:
+## Test no parametricos
 
+## Hipótesis de Chi-Cuadrado para análisis de contingencia:
+
+Hipótesis Nula: No hay asociación entre las dos variables categóricas (son independientes).
+Hipótesis Alternativa: Hay asociación entre las dos variables categóricas.
+
+```{r, echo=FALSE}
+
+#Comprobacion que es una distribucion noraml con un chi-cuadrado ulltilizando m.a.s flightType y price
+
+kable(datos %>% group_by(flightType) %>% summarise(n = n()) %>% mutate(probabilidad = n/sum(n)), col.names = c("flightType", "Precio", "Probabilidad"), caption = "Probabilidad del tipo de vuelo") %>% 
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"))
+
+set.seed(1234)
+datos1 <- datos[c('flightType','price')]
+filas <- sample(1:nrow(datos1), 500, replace = FALSE)
+datos1 <- datos1[filas,]
+
+tabla <- table(datos1$flightType, datos1$price)
+tabla
+
+chisq.test(tabla)
+```
+
+Al ser  p-value < 2.2e-16 menor que el nivel de significación 0,05 se rechaza la hipotesis nula por lo tant no se puede decir que los precios con el tipo de vuelo son idependientes entre si.
+
+
+## Kruskall test
+
+Hipótesis Nula: Las medianas de todos los grupos son iguales.
+Hipótesis Alternativa: Al menos una mediana difiere de las demás.
+
+```{r, echo=FALSE}
+hist(economic$price, main = "economic", xlab = "Price", ylab = "Frecuencia", col = "pink")
+hist(premium$price, main = "premium", xlab = "Price", ylab = "Frecuencia", col = "pink")
+hist(firstClass$price, main = "firstClass", xlab = "Price", ylab = "Frecuencia", col = "pink")
+
+#Comprobar que sigue una distribucion normal
+ks.test(firstClass$price, "pnorm", mean(firstClass$price), sd(firstClass$price))
+ks.test(economic$price, "pnorm", mean(economic$price), sd(economic$price))
+ks.test(premium$price, "pnorm", mean(premium$price), sd(premium$price))
+```
+Como los datos no cumplen los supuestos de normalidad, ya que p-value es muy pequeña y menor a 0,05 las dos m.a.s(flightType y price) son tests no parametricos. Por lo tanto se rechaza la hipótesis nula.
+
+```{r, echo=FALSE}
+#Comprobar aleatoriedad
+runs.test(economic$price)
+runs.test(premium$price)
+runs.test(firstClass$price)
+```
+Los tres tests tienen un p valor menor que (0,05) por lo tanto no se cumple la aleatoriedad
+
+```{r, echo=FALSE}
+# test de Kruskal-Wallis
+kruskal.test(price ~ flightType, data = datos1)
+```
+Como el p-valor (`r kruskal.test(edad ~ país, data = datos1)$p.value`) es menor que el nivel de significación 0.05 se rechaza la hipotesis nula por lo tanto al menos una mediana difiere de las demás
+
+
+## Hipótesis de Wilcoxon:
+Hipótesis Nula: La mediana de las diferencias entre pares de observaciones es igual a cero (no hay diferencia significativa).
+Hipótesis Alternativa: La mediana de las diferencias entre pares de observaciones no es igual a cero (hay diferencia significativa).
+```{r, echo=FALSE}
+wilcox.test(mpremium, mfirstClass)
+```
+
+Como p valor es un numero menor a 0,05 se rechaza la hipotesisi nula y por lo tanto la mediana de las diferencias no es igual a cero.
+
+
+## Test parametricos
+Anteriormente hemos dicho que los datos no cumplian los supuestos de normalidad y que por lo tanto se usaban tests no parametricos.
+Suponiendo que cumplen los supuestos de normalidad, vamos a realizar algunos tests parametricos para nuestras dos m.a.s.
+
+## Test de medias
+Hipotesis nula: la media de precios en first Class es igual a la media de los precios en economic.
+Hipotesis alternativa: la media de precios en first Class es diferente a la media de los precios en economic.
+
+Suponemos que la mustra sigue una distribucion normal
+
+```{r, echo=FALSE}
+t.test(firstClass$price, economic$price, alternative = "less", conf.level = 0.95, var.equal = TRUE)
+```
+Como el p-value = 1 es mayor a 0,05 se acepta la hipotesis nula por lo que se afirma que la media de los precios de primera clase es mayor a la media de los precios de economic.
+
+## Prueba t de Student
+Hipótesis Nula: No hay diferencia significativa entre las medias de los dos grupos.
+Hipótesis Alternativa: Hay una diferencia significativa entre las medias de los dos grupos.
+
+```{r, echo=FALSE}
+t.test(firstClass$price, economic$price)
+```
+Como el p-value < 2.2e-16 es menor a 0,05 se rechaza la hipotesisis nula, tambien podemos ver que la media de los precios de primera clase es mayor a la media de los precios de economic
+
+## Test de varianzas
+Hipotesis nula: la varianza de precios en first Class es igual a la media de los precios en economic.
+Hipotesis alternativa: la varianza de precios en first Class es diferente a la media de los precios en economic.
+
+```{r, echo=FALSE}
+var.test(firstClass$price, economic$price, conf.level = 0.95)
+```
+Como el p-value < 2.2e-16 es menor a 0,05 se rechaza la hipotesisis nula, por lo tanto la varianza de precios en first Class es diferente a la media de los precios en economic.
+
+## Test Anova
+Supuestos de ANOVA:
+Normalidad: Se asume que las poblaciones subyacentes son normalmente distribuidas. Sin embargo, ANOVA es robusta frente a desviaciones moderadas de la normalidad, especialmente con tamaños de muestra grandes.
+Homogeneidad de Varianzas:Se asume que las varianzas de las poblaciones subyacentes son iguales (homogeneidad de varianzas). Este supuesto es crucial para la validez del test.
+Independencia:Las observaciones dentro de cada grupo deben ser independientes entre sí.
+
+
+Hipótesis Nula (H0): Todas las medias poblacionales de los precios de los 3 tipos de vuelos que hay son iguales.
+Hipótesis Alternativa (H1): Al menos dos medias poblacionales de los precios de los 3 tipos de vuelos que hay son diferentes.
+
+Test de normalidad:
+```{r, echo=FALSE}
+ks.test(firstClass$price, "pnorm", mean(firstClass$price), sd(firstClass$price))
+ks.test(economic$price, "pnorm", mean(economic$price), sd(economic$price))
+ks.test(premium$price, "pnorm", mean(premium$price), sd(premium$price))
+```
+
+Al ser todos los valor de p-value menor al nivel de significación de 0,05, por lo tanto no se acepta la normalidad
+
+Test de aleatoriedad:
+```{r, echo=FALSE}
+runs.test(firstClass$price)
+runs.test(economic$price)
+runs.test(premium$price)
+```
+
+Al ser todos los valor de p-value menor al nivel de significación de 0,05, por lo tanto no se acepta la aleatoriedad
+
+Test de homogeneidad de varianzas (test de Levene):
+```{r, echo=FALSE}
+leveneTest(price ~ flightType, data = datos)
+```
+
+Al ser el valor de p-value menor al nivel de significación de 0,05, por lo tanto no se acepta la homogeneidad de varianzas
+
+Suponiendo que se aceptase la normalidad, aleatoriedad y homogeneidad de varianzas:
+```{r, echo=FALSE}
+# test de ANOVA
+summary(aov(price ~ flightType, data = datos))
+```
+Al ser el p valor menor que 0,05, se rechaza la hipoteisis nula por lo tanto sabemos que las medias del precio de los tipos de vuelo no son iguales entre si.
+```{r, echo=FALSE}
+TukeyHSD(aov(price ~ flightType, data = datos))
+```
+
+Se demuestra que las medias de vuelos de primera clase, premium y economic class, son diferentes entre si.
 
